@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    command: python app.py
+    ports:
+      - "5000:5000"
+    volumes:
+      - code_volume:/code
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  code_volume:
+
+
