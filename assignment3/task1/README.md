@@ -1,4 +1,4 @@
-#To intsall minikube we use this command 
+#To intsall minikube we use this command (download minikube file  is not pushed because it is 132 md max size is 100 mb allowed by git )
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube
 #To start the minikube 
