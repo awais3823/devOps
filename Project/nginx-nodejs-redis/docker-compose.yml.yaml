@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  redis-db:
+    image: redis:7-alpine
+    container_name: redis-db
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  web1:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: web1
+    ports:
+      - "5001:5000"  # host 5001 -> container 5000
+    environment:
+      - REDIS_HOST=redis-db
+      - REDIS_PORT=6379
+    depends_on:
+      - redis-db
+    networks:
+      - app-network
+
+  web2:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: web2
+    ports:
+      - "5002:5000"  # host 5002 -> container 5000
+    environment:
+      - REDIS_HOST=redis-db
+      - REDIS_PORT=6379
+    depends_on:
+      - redis-db
+    networks:
+      - app-network
+
+  nginx-lb:
+    image: nginx:1.21.6
+    container_name: nginx-lb
+    ports:
+      - "80:80"  # host 80 -> container 80
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web1
+      - web2
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

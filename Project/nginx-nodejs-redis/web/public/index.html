@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dockerized Application - Visit Counter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐳 Dockerized Application</h1>
+            <p class="subtitle">Node.js + Redis + Nginx Load Balancer</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <div class="card-header">
+                    <h2>Visit Counter</h2>
+                </div>
+                <div class="card-body">
+                    <div class="visit-display">
+                        <div class="visit-number" id="visitCount">-</div>
+                        <div class="visit-label">Total Visits</div>
+                    </div>
+                    <div class="server-info">
+                        <div class="info-item">
+                            <span class="info-label">Server:</span>
+                            <span class="info-value" id="serverName">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Last Updated:</span>
+                            <span class="info-value" id="lastUpdate">-</span>
+                        </div>
+                    </div>
+                    <button class="btn-refresh" onclick="updateVisits()">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>System Information</h2>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Architecture:</span>
+                            <span class="info-value">Multi-container Docker</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Backend:</span>
+                            <span class="info-value">Node.js + Express</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Database:</span>
+                            <span class="info-value">Redis</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Load Balancer:</span>
+                            <span class="info-value">Nginx</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Built with Docker Compose | Final Year Project</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
