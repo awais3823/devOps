@@ -38,33 +38,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      # Step 4.5: Debug - List directory structure
-      - name: Debug - List directory structure
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo ""
-          echo "=== Root directory contents ==="
-          ls -la
-          echo ""
-          echo "=== Project directory ==="
-          ls -la Project/ || echo "Project directory not found"
-          echo ""
-          echo "=== nginx-nodejs-redis directory ==="
-          ls -la Project/nginx-nodejs-redis/ || echo "nginx-nodejs-redis directory not found"
-          echo ""
-          echo "=== web directory ==="
-          ls -la Project/nginx-nodejs-redis/web/ || echo "web directory not found"
-          echo ""
-          echo "=== nginx directory ==="
-          ls -la Project/nginx-nodejs-redis/nginx/ || echo "nginx directory not found"
-
       # Step 5: Build and push web image
       - name: Build and push web image
         uses: docker/build-push-action@v5
         with:
-          context: ./Project/nginx-nodejs-redis/web
-          file: ./Project/nginx-nodejs-redis/web/Dockerfile
+          context: ./assignment4/Project/nginx-nodejs-redis/web
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:latest
@@ -77,8 +55,7 @@ jobs:
       - name: Build and push nginx image
         uses: docker/build-push-action@v5
         with:
-          context: ./Project/nginx-nodejs-redis/nginx
-          file: ./Project/nginx-nodejs-redis/nginx/Dockerfile
+          context: ./nginx
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:latest
@@ -97,24 +74,10 @@ jobs:
       - name: Configure Kubernetes
         run: |
           mkdir -p $HOME/.kube
-          # Write kubeconfig - try base64 decode first, then fallback to plain text
-          KUBECONFIG_CONTENT="${{ secrets.KUBECONFIG }}"
-          # Try base64 decode
-          if echo "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config 2>/dev/null; then
-            echo "Kubeconfig decoded from base64"
-          else
-            # Use as plain text, but remove any surrounding quotes if present
-            echo "$KUBECONFIG_CONTENT" | sed 's/^"//;s/"$//' > $HOME/.kube/config
-            echo "Kubeconfig used as plain text"
-          fi
+          # Try to decode as base64 first, if it fails, use as plain text
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config 2>/dev/null || \
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
-          # Verify the config file format
-          if ! grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
-            echo "Error: kubeconfig file doesn't appear to be valid YAML"
-            echo "First 500 characters:"
-            head -c 500 $HOME/.kube/config
-            exit 1
-          fi
           kubectl version --client
 
       # Step 9: Verify Kubernetes cluster connection
