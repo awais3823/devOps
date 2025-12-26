@@ -97,8 +97,6 @@ jobs:
       - name: Configure Kubernetes
         run: |
           mkdir -p $HOME/.kube
-          # Try to decode as base64 first, if it fails, use as plain text
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config 2>/dev/null || \
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
           kubectl version --client
