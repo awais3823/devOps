@@ -10,7 +10,7 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hostedt
+    runs-on: self-hosted
     
     steps:
       # Step 1: Checkout code
