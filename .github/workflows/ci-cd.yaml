@@ -38,11 +38,33 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+      # Step 4.5: Debug - List directory structure
+      - name: Debug - List directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo ""
+          echo "=== Root directory contents ==="
+          ls -la
+          echo ""
+          echo "=== Project directory ==="
+          ls -la Project/ || echo "Project directory not found"
+          echo ""
+          echo "=== nginx-nodejs-redis directory ==="
+          ls -la Project/nginx-nodejs-redis/ || echo "nginx-nodejs-redis directory not found"
+          echo ""
+          echo "=== web directory ==="
+          ls -la Project/nginx-nodejs-redis/web/ || echo "web directory not found"
+          echo ""
+          echo "=== nginx directory ==="
+          ls -la Project/nginx-nodejs-redis/nginx/ || echo "nginx directory not found"
+
       # Step 5: Build and push web image
       - name: Build and push web image
         uses: docker/build-push-action@v5
         with:
           context: ./Project/nginx-nodejs-redis/web
+          file: ./Project/nginx-nodejs-redis/web/Dockerfile
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:latest
@@ -56,6 +78,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./Project/nginx-nodejs-redis/nginx
+          file: ./Project/nginx-nodejs-redis/nginx/Dockerfile
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:latest
