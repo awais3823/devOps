@@ -2,21 +2,17 @@ name: CI/CD Pipeline
 
 on:
   release:
-    types: [published] # 'published' is more reliable than 'created'
+    types: [published]
 
 env:
-  DOCKER_REGISTRY: docker.io
   KUBERNETES_NAMESPACE: nginx-nodejs-redis
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -24,77 +20,41 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and Push Images
-        uses: docker/build-push-action@v5
-        with:
-          context: ./Project/nginx-nodejs-redis/web
-          file: ./Project/nginx-nodejs-redis/web/Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:${{ github.event.release.tag_name }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:latest
+      - name: Build and Push Web Image
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          USER=${{ secrets.DOCKERHUB_USERNAME }}
+          docker build -t $USER/nginx-nodejs-redis-web:$TAG -f ./Project/nginx-nodejs-redis/web/Dockerfile ./Project/nginx-nodejs-redis/web
+          docker push $USER/nginx-nodejs-redis-web:$TAG
+          docker tag $USER/nginx-nodejs-redis-web:$TAG $USER/nginx-nodejs-redis-web:latest
+          docker push $USER/nginx-nodejs-redis-web:latest
 
       - name: Build and Push Nginx Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./Project/nginx-nodejs-redis/nginx
-          file: ./Project/nginx-nodejs-redis/nginx/Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:${{ github.event.release.tag_name }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:latest
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          USER=${{ secrets.DOCKERHUB_USERNAME }}
+          docker build -t $USER/nginx-nodejs-redis-nginx:$TAG -f ./Project/nginx-nodejs-redis/nginx/Dockerfile ./Project/nginx-nodejs-redis/nginx
+          docker push $USER/nginx-nodejs-redis-nginx:$TAG
+          docker tag $USER/nginx-nodejs-redis-nginx:$TAG $USER/nginx-nodejs-redis-nginx:latest
+          docker push $USER/nginx-nodejs-redis-nginx:latest
 
       - name: Configure Kubernetes
         env:
           KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
           mkdir -p $HOME/.kube
-          
-          # Try base64 decode first, then fallback to plain text
-          KUBECONFIG_CONTENT="$KUBECONFIG"
-          
-          if echo -n "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config 2>/dev/null && kubectl config view --kubeconfig=$HOME/.kube/config > /dev/null 2>&1; then
-            echo "✓ Kubeconfig decoded from base64"
-          else
-            # Use as plain text
-            printf '%s' "$KUBECONFIG_CONTENT" > $HOME/.kube/config
-            echo "✓ Kubeconfig used as plain text"
-          fi
-          
+          printf '%s' "$KUBECONFIG" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
-          
-          # Verify that the file is valid using kubectl
-          if ! kubectl config view --kubeconfig=$HOME/.kube/config > /dev/null 2>&1; then
-            echo "Error: Invalid kubeconfig"
-            echo "File size: $(wc -c < $HOME/.kube/config) bytes"
-            echo "First 200 characters:"
-            head -c 200 $HOME/.kube/config
-            exit 1
-          fi
-          
-          # Show config info for debugging
-          echo "Kubeconfig is valid. Cluster info:"
-          kubectl config view --kubeconfig=$HOME/.kube/config --minify
+          kubectl config view --minify
 
       - name: Deploy to Kubernetes
         run: |
           TAG=${{ github.event.release.tag_name }}
           USER=${{ secrets.DOCKERHUB_USERNAME }}
           NS=${{ env.KUBERNETES_NAMESPACE }}
-
-          # Verify cluster connection
-          kubectl cluster-info
-
-          # Update the images in the cluster
+          
           kubectl set image deployment/web web=$USER/nginx-nodejs-redis-web:$TAG -n $NS
           kubectl set image deployment/nginx nginx=$USER/nginx-nodejs-redis-nginx:$TAG -n $NS
-          
-          # Wait for rollout to finish
           kubectl rollout status deployment/web -n $NS --timeout=300s
           kubectl rollout status deployment/nginx -n $NS --timeout=300s
-          
-          # Show status
           kubectl get pods -n $NS
