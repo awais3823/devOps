@@ -49,3 +49,4 @@ echo "  - ${DOCKERHUB_USERNAME}/nginx-nodejs-redis-nginx:latest"
 echo "  - ${DOCKERHUB_USERNAME}/nginx-nodejs-redis-nginx:v1.0.0"
 
 
+

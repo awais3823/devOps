@@ -42,7 +42,7 @@ jobs:
       - name: Build and push web image
         uses: docker/build-push-action@v5
         with:
-          context: ./web
+          context: ./Project/nginx-nodejs-redis/web
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:latest
@@ -55,7 +55,7 @@ jobs:
       - name: Build and push nginx image
         uses: docker/build-push-action@v5
         with:
-          context: ./nginx
+          context: ./Project/nginx-nodejs-redis/nginx
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:latest

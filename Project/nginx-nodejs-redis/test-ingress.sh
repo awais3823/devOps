@@ -23,3 +23,4 @@ echo "3. Testing / (frontend):"
 curl -s -H "Host: nginx-nodejs-redis.local" "http://${NODE_IP}:${NODE_PORT}/" | head -20
 
 
+

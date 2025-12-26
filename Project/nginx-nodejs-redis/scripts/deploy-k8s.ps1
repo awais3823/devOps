@@ -52,3 +52,4 @@ Write-Host "  kubectl get all -n nginx-nodejs-redis"
 Write-Host "  kubectl get ingress -n nginx-nodejs-redis"
 
 
+

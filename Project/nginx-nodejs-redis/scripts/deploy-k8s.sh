@@ -60,3 +60,4 @@ echo "  kubectl get all -n nginx-nodejs-redis"
 echo "  kubectl get ingress -n nginx-nodejs-redis"
 
 
+

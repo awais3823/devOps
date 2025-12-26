@@ -41,3 +41,4 @@ Write-Host "  - ${DockerHubUsername}/nginx-nodejs-redis-nginx:latest"
 Write-Host "  - ${DockerHubUsername}/nginx-nodejs-redis-nginx:v1.0.0"
 
 
+
