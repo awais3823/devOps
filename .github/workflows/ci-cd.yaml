@@ -39,11 +39,9 @@ jobs:
           docker push $USER/nginx-nodejs-redis-nginx:latest
 
       - name: Configure Kubernetes
-        env:
-          KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
           mkdir -p $HOME/.kube
-          printf '%s' "$KUBECONFIG" > $HOME/.kube/config
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
           kubectl config view --minify
 
