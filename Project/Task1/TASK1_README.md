@@ -13,14 +13,6 @@ docker compose up -d
 # View all running containers
 docker compose ps
 
-**Expected Output:**
-NAME       IMAGE                      STATUS                    PORTS
-nginx-lb   nginx-nodejs-redis-nginx   Up X minutes             0.0.0.0:8080->80/tcp
-redis-db   redis:7-alpine             Up X minutes             0.0.0.0:6379->6379/tcp
-web1       nginx-nodejs-redis-web1    Up X minutes (healthy)   0.0.0.0:81->5000/tcp
-web2       nginx-nodejs-redis-web2    Up X minutes (healthy)   0.0.0.0:82->5000/tcp
-
-
 ### 5. View Container Logs
 
 # View logs for all services
