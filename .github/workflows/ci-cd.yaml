@@ -1,198 +1,79 @@
-name: CI/CD Pipeline
+name: Simplified CI/CD
 
 on:
   release:
-    types: [created]
-
-env:
-  DOCKER_REGISTRY: docker.io
-  KUBERNETES_NAMESPACE: nginx-nodejs-redis
+    types: [created]  # Changed from 'published' to 'created'
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
-    
+    runs-on: ubuntu-latest  # Or 'self-hosted' if using self-hosted runner
     steps:
-      # Step 1: Checkout code
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Set up Docker Buildx for advanced features and caching
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 3: Extract release version from GitHub release tag
-      - name: Extract release version
-        id: release_version
-        run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          # Remove 'v' prefix if present (e.g., v1.0.0 -> 1.0.0)
-          VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Release version: $VERSION"
-
-      # Step 4: Log in to Docker Hub
-      - name: Log in to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}  # Fixed: consistent name
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}   # Fixed: consistent name
 
-      # Step 5: Build and push web image
-      - name: Build and push web image
+      - name: Build and Push Web Image
         uses: docker/build-push-action@v5
         with:
           context: ./Project/nginx-nodejs-redis/web
           file: ./Project/nginx-nodejs-redis/web/Dockerfile
           push: true
           tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:${{ github.event.release.tag_name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:${{ steps.release_version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
 
-      # Step 6: Build and push nginx image
-      - name: Build and push nginx image
+      - name: Build and Push Nginx Image
         uses: docker/build-push-action@v5
         with:
           context: ./Project/nginx-nodejs-redis/nginx
           file: ./Project/nginx-nodejs-redis/nginx/Dockerfile
           push: true
           tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:${{ github.event.release.tag_name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:${{ steps.release_version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
 
-      # Step 7: Set up kubectl
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'latest'
 
-      # Step 8: Configure Kubernetes connection
-      - name: Configure Kubernetes
+      - name: Deploy to Kubernetes
+        env:
+          KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
           mkdir -p $HOME/.kube
-          # Write kubeconfig - preserve exact formatting
-          KUBECONFIG_CONTENT="${{ secrets.KUBECONFIG }}"
-          
-          # Try base64 decode first (if secret is base64 encoded)
-          if echo -n "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config 2>/dev/null && grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
-            echo "✓ Kubeconfig decoded from base64"
-          else
-            # Use as plain text - write using printf to preserve all characters
-            printf '%s' "$KUBECONFIG_CONTENT" > $HOME/.kube/config
-            echo "✓ Kubeconfig written as plain text"
-          fi
-          
+          # Use printf to preserve formatting
+          printf '%s' "$KUBECONFIG" > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
           
-          # Verify the config file format
-          if ! grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
-            echo "Error: kubeconfig file doesn't appear to be valid YAML"
-            echo "First 500 characters:"
-            head -c 500 $HOME/.kube/config
+          # Verify config is valid
+          if ! grep -q "apiVersion:" $HOME/.kube/config; then
+            echo "Error: Invalid kubeconfig"
             exit 1
           fi
           
-          # Validate that certificate data exists and is valid base64
-          if grep -q "certificate-authority-data:" $HOME/.kube/config; then
-            CA_DATA=$(grep "certificate-authority-data:" $HOME/.kube/config | awk '{print $2}')
-            if [ -n "$CA_DATA" ] && echo "$CA_DATA" | base64 -d > /dev/null 2>&1; then
-              echo "✓ Certificate authority data is valid base64"
-            else
-              echo "✗ Certificate authority data is NOT valid base64"
-              echo "CA data length: ${#CA_DATA} characters"
-            fi
-          fi
+          # Update images in the cluster
+          TAG=${{ github.event.release.tag_name }}
+          NAMESPACE="nginx-nodejs-redis"
           
-          if grep -q "client-certificate-data:" $HOME/.kube/config; then
-            CERT_DATA=$(grep "client-certificate-data:" $HOME/.kube/config | awk '{print $2}')
-            if [ -n "$CERT_DATA" ] && echo "$CERT_DATA" | base64 -d > /dev/null 2>&1; then
-              echo "✓ Client certificate data is valid base64"
-            else
-              echo "✗ Client certificate data is NOT valid base64"
-              echo "Cert data length: ${#CERT_DATA} characters"
-            fi
-          fi
-          
-          if grep -q "client-key-data:" $HOME/.kube/config; then
-            KEY_DATA=$(grep "client-key-data:" $HOME/.kube/config | awk '{print $2}')
-            if [ -n "$KEY_DATA" ] && echo "$KEY_DATA" | base64 -d > /dev/null 2>&1; then
-              echo "✓ Client key data is valid base64"
-            else
-              echo "✗ Client key data is NOT valid base64"
-              echo "Key data length: ${#KEY_DATA} characters"
-            fi
-          fi
-          
-          # Show file info for debugging
-          echo ""
-          echo "Kubeconfig file size: $(wc -c < $HOME/.kube/config) bytes"
-          echo "First 15 lines of kubeconfig:"
-          head -n 15 $HOME/.kube/config
-          
-          # Test kubectl can read the config
-          kubectl version --client
-
-      # Step 9: Verify Kubernetes cluster connection
-      - name: Verify cluster connection
-        run: |
+          # Verify cluster connection
           kubectl cluster-info
-          kubectl get nodes
-
-      # Step 10: Update web deployment with new image
-      - name: Update web deployment
-        run: |
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:${{ steps.release_version.outputs.version }}"
-          echo "Updating web deployment with image: $IMAGE"
-          # Try kubectl set image first, fallback to patch if needed
-          kubectl set image deployment/web web=$IMAGE -n ${{ env.KUBERNETES_NAMESPACE }} || \
-          kubectl patch deployment web -n ${{ env.KUBERNETES_NAMESPACE }} -p '{"spec":{"template":{"spec":{"containers":[{"name":"web","image":"'$IMAGE'"}]}}}}'
-
-      # Step 11: Update nginx deployment with new image
-      - name: Update nginx deployment
-        run: |
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:${{ steps.release_version.outputs.version }}"
-          echo "Updating nginx deployment with image: $IMAGE"
-          # Try kubectl set image first, fallback to patch if needed
-          kubectl set image deployment/nginx nginx=$IMAGE -n ${{ env.KUBERNETES_NAMESPACE }} || \
-          kubectl patch deployment nginx -n ${{ env.KUBERNETES_NAMESPACE }} -p '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","image":"'$IMAGE'"}]}}}}'
-
-      # Step 12: Verify web deployment rollout
-      - name: Verify web deployment rollout
-        run: |
-          echo "Waiting for web deployment to complete rollout..."
-          kubectl rollout status deployment/web -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=300s
-          echo "Web deployment rolled out successfully!"
-
-      # Step 13: Verify nginx deployment rollout
-      - name: Verify nginx deployment rollout
-        run: |
-          echo "Waiting for nginx deployment to complete rollout..."
-          kubectl rollout status deployment/nginx -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=300s
-          echo "Nginx deployment rolled out successfully!"
-
-      # Step 14: Display deployment status
-      - name: Display deployment status
-        run: |
-          echo "=== Deployment Status ==="
-          kubectl get deployments -n ${{ env.KUBERNETES_NAMESPACE }}
-          echo ""
-          echo "=== Pod Status ==="
-          kubectl get pods -n ${{ env.KUBERNETES_NAMESPACE }}
-          echo ""
-          echo "=== Image Versions ==="
-          kubectl get deployments -n ${{ env.KUBERNETES_NAMESPACE }} -o jsonpath='{range .items[*]}{.metadata.name}{": "}{.spec.template.spec.containers[0].image}{"\n"}{end}'
-
-      # Step 15: Verify pods are running
-      - name: Verify pods are healthy
-        run: |
-          echo "Checking pod health..."
-          kubectl wait --for=condition=ready pod -l app=web -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=120s || true
-          kubectl wait --for=condition=ready pod -l app=nginx -n ${{ env.KUBERNETES_NAMESPACE }} --timeout=120s || true
-          echo "All pods are ready!"
-
+          
+          # Update deployments
+          kubectl set image deployment/web web=${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-web:$TAG -n $NAMESPACE
+          kubectl set image deployment/nginx nginx=${{ secrets.DOCKERHUB_USERNAME }}/nginx-nodejs-redis-nginx:$TAG -n $NAMESPACE
+          
+          # Verify rollout
+          kubectl rollout status deployment/web -n $NAMESPACE --timeout=300s
+          kubectl rollout status deployment/nginx -n $NAMESPACE --timeout=300s
+          
+          # Show status
+          kubectl get pods -n $NAMESPACE
