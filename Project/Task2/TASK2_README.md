@@ -13,9 +13,6 @@ docker login
 docker push awais3823/nginx-nodejs-redis-web:latest
 docker push awais3823/nginx-nodejs-redis-nginx:latest
 
-# Start Kubernetes cluster (Docker Desktop / Minikube)
-minikube start --driver=docker
-# OR use existing kubectl context
 
 # Create namespace
 kubectl apply -f k8s/namespace.yaml
@@ -67,3 +64,10 @@ kubectl get pods -n monitoring
 http://<NODE_IP>:30000
 # Username: admin
 # Password: admin
+
+#verication 
+kubectl get ingress -n nginx-nodejs-redis
+http://nginx-nodejs-redis.local
+
+kubectl get nodes -o wide
+http://172.29.254.201:30000

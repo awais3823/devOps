@@ -38,6 +38,43 @@ jobs:
           docker tag $USER/nginx-nodejs-redis-nginx:$TAG $USER/nginx-nodejs-redis-nginx:latest
           docker push $USER/nginx-nodejs-redis-nginx:latest
 
+      - name: Configure Kubernetes
+        run: |
+          mkdir -p $HOME/.kube
+          
+          # Try to use kubeconfig.b64 file first, then fallback to secret
+          if [ -f ./kubeconfig.b64 ]; then
+            echo "Using kubeconfig.b64 file"
+            base64 -d ./kubeconfig.b64 > $HOME/.kube/config
+          elif [ -n "${{ secrets.KUBECONFIG }}" ]; then
+            echo "Using KUBECONFIG secret"
+            KUBE="${{ secrets.KUBECONFIG }}"
+            # Try base64 decode
+            if echo -n "$KUBE" | base64 -d > $HOME/.kube/config 2>/dev/null && head -n 1 $HOME/.kube/config | grep -q "^apiVersion:" 2>/dev/null; then
+              echo "✓ Decoded from base64"
+            else
+              # Plain text
+              echo "$KUBE" > $HOME/.kube/config
+              echo "✓ Using plain text"
+            fi
+          else
+            echo "Error: No kubeconfig found (neither kubeconfig.b64 file nor KUBECONFIG secret)"
+            exit 1
+          fi
+          
+          chmod 600 $HOME/.kube/config
+          
+          # Validate kubeconfig
+          if ! head -n 1 $HOME/.kube/config | grep -q "^apiVersion:"; then
+            echo "Error: Invalid kubeconfig format"
+            echo "First 50 chars: $(head -c 50 $HOME/.kube/config)"
+            exit 1
+          fi
+          
+          # Test connection
+          kubectl cluster-info
+          kubectl get nodes
+
       - name: Deploy to Kubernetes
         run: |
           TAG=${{ github.event.release.tag_name }}
