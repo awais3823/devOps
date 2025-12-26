@@ -47,22 +47,40 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Deploy to Kubernetes
+      - name: Configure Kubernetes
         env:
           KUBECONFIG: ${{ secrets.KUBECONFIG }}
         run: |
-          # Create kubeconfig directory
           mkdir -p $HOME/.kube
-          # Use printf to preserve formatting
-          printf '%s' "$KUBECONFIG" > $HOME/.kube/config
+          
+          # Try base64 decode first, then fallback to plain text
+          KUBECONFIG_CONTENT="$KUBECONFIG"
+          
+          if echo -n "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config 2>/dev/null && kubectl config view --kubeconfig=$HOME/.kube/config > /dev/null 2>&1; then
+            echo "✓ Kubeconfig decoded from base64"
+          else
+            # Use as plain text
+            printf '%s' "$KUBECONFIG_CONTENT" > $HOME/.kube/config
+            echo "✓ Kubeconfig used as plain text"
+          fi
+          
           chmod 600 $HOME/.kube/config
           
-          # Validate kubeconfig
-          if ! grep -q "apiVersion:" $HOME/.kube/config; then
+          # Verify that the file is valid using kubectl
+          if ! kubectl config view --kubeconfig=$HOME/.kube/config > /dev/null 2>&1; then
             echo "Error: Invalid kubeconfig"
+            echo "File size: $(wc -c < $HOME/.kube/config) bytes"
+            echo "First 200 characters:"
+            head -c 200 $HOME/.kube/config
             exit 1
           fi
           
+          # Show config info for debugging
+          echo "Kubeconfig is valid. Cluster info:"
+          kubectl config view --kubeconfig=$HOME/.kube/config --minify
+
+      - name: Deploy to Kubernetes
+        run: |
           TAG=${{ github.event.release.tag_name }}
           USER=${{ secrets.DOCKERHUB_USERNAME }}
           NS=${{ env.KUBERNETES_NAMESPACE }}
