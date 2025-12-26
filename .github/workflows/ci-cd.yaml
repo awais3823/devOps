@@ -78,15 +78,18 @@ jobs:
           mkdir -p $HOME/.kube
           # Write kubeconfig - preserve exact formatting
           KUBECONFIG_CONTENT="${{ secrets.KUBECONFIG }}"
-          # Try base64 decode first
+          
+          # Try base64 decode first (if secret is base64 encoded)
           if echo -n "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config 2>/dev/null && grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
-            echo "Kubeconfig decoded from base64"
+            echo "✓ Kubeconfig decoded from base64"
           else
-            # Use as plain text - use printf to preserve newlines
-            printf '%s\n' "$KUBECONFIG_CONTENT" > $HOME/.kube/config
-            echo "Kubeconfig used as plain text"
+            # Use as plain text - write using printf to preserve all characters
+            printf '%s' "$KUBECONFIG_CONTENT" > $HOME/.kube/config
+            echo "✓ Kubeconfig written as plain text"
           fi
+          
           chmod 600 $HOME/.kube/config
+          
           # Verify the config file format
           if ! grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
             echo "Error: kubeconfig file doesn't appear to be valid YAML"
@@ -94,9 +97,45 @@ jobs:
             head -c 500 $HOME/.kube/config
             exit 1
           fi
-          # Show first few lines for debugging
-          echo "First 10 lines of kubeconfig:"
-          head -n 10 $HOME/.kube/config
+          
+          # Validate that certificate data exists and is valid base64
+          if grep -q "certificate-authority-data:" $HOME/.kube/config; then
+            CA_DATA=$(grep "certificate-authority-data:" $HOME/.kube/config | awk '{print $2}')
+            if [ -n "$CA_DATA" ] && echo "$CA_DATA" | base64 -d > /dev/null 2>&1; then
+              echo "✓ Certificate authority data is valid base64"
+            else
+              echo "✗ Certificate authority data is NOT valid base64"
+              echo "CA data length: ${#CA_DATA} characters"
+            fi
+          fi
+          
+          if grep -q "client-certificate-data:" $HOME/.kube/config; then
+            CERT_DATA=$(grep "client-certificate-data:" $HOME/.kube/config | awk '{print $2}')
+            if [ -n "$CERT_DATA" ] && echo "$CERT_DATA" | base64 -d > /dev/null 2>&1; then
+              echo "✓ Client certificate data is valid base64"
+            else
+              echo "✗ Client certificate data is NOT valid base64"
+              echo "Cert data length: ${#CERT_DATA} characters"
+            fi
+          fi
+          
+          if grep -q "client-key-data:" $HOME/.kube/config; then
+            KEY_DATA=$(grep "client-key-data:" $HOME/.kube/config | awk '{print $2}')
+            if [ -n "$KEY_DATA" ] && echo "$KEY_DATA" | base64 -d > /dev/null 2>&1; then
+              echo "✓ Client key data is valid base64"
+            else
+              echo "✗ Client key data is NOT valid base64"
+              echo "Key data length: ${#KEY_DATA} characters"
+            fi
+          fi
+          
+          # Show file info for debugging
+          echo ""
+          echo "Kubeconfig file size: $(wc -c < $HOME/.kube/config) bytes"
+          echo "First 15 lines of kubeconfig:"
+          head -n 15 $HOME/.kube/config
+          
+          # Test kubectl can read the config
           kubectl version --client
 
       # Step 9: Verify Kubernetes cluster connection
