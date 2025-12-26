@@ -9,7 +9,7 @@ env:
 
 jobs:
   build-and-deploy:
-    runs-on: self-hosted
+    runs-on: self-hosted 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,13 +38,6 @@ jobs:
           docker tag $USER/nginx-nodejs-redis-nginx:$TAG $USER/nginx-nodejs-redis-nginx:latest
           docker push $USER/nginx-nodejs-redis-nginx:latest
 
-      - name: Configure Kubernetes
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
-          kubectl config view --minify
-
       - name: Deploy to Kubernetes
         run: |
           TAG=${{ github.event.release.tag_name }}
@@ -53,6 +46,6 @@ jobs:
           
           kubectl set image deployment/web web=$USER/nginx-nodejs-redis-web:$TAG -n $NS
           kubectl set image deployment/nginx nginx=$USER/nginx-nodejs-redis-nginx:$TAG -n $NS
+          
           kubectl rollout status deployment/web -n $NS --timeout=300s
           kubectl rollout status deployment/nginx -n $NS --timeout=300s
-          kubectl get pods -n $NS
