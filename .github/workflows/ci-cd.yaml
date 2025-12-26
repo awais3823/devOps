@@ -74,10 +74,27 @@ jobs:
       - name: Configure Kubernetes
         run: |
           mkdir -p $HOME/.kube
-          # Try to decode as base64 first, if it fails, use as plain text
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config 2>/dev/null || \
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          # Write kubeconfig - preserve exact formatting
+          KUBECONFIG_CONTENT="${{ secrets.KUBECONFIG }}"
+          # Try base64 decode first
+          if echo -n "$KUBECONFIG_CONTENT" | base64 -d > $HOME/.kube/config 2>/dev/null && grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
+            echo "Kubeconfig decoded from base64"
+          else
+            # Use as plain text - use printf to preserve newlines
+            printf '%s\n' "$KUBECONFIG_CONTENT" > $HOME/.kube/config
+            echo "Kubeconfig used as plain text"
+          fi
           chmod 600 $HOME/.kube/config
+          # Verify the config file format
+          if ! grep -q "apiVersion:" $HOME/.kube/config 2>/dev/null; then
+            echo "Error: kubeconfig file doesn't appear to be valid YAML"
+            echo "First 500 characters:"
+            head -c 500 $HOME/.kube/config
+            exit 1
+          fi
+          # Show first few lines for debugging
+          echo "First 10 lines of kubeconfig:"
+          head -n 10 $HOME/.kube/config
           kubectl version --client
 
       # Step 9: Verify Kubernetes cluster connection
