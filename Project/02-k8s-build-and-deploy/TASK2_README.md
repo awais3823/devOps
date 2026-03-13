@@ -1,4 +1,4 @@
-# Build and Deploy Nginx + Node.js + Redis on Kubernetes
+# 02-k8s-build-and-deploy: Build and Deploy Nginx + Node.js + Redis on Kubernetes
 
 # Build web image
 docker build -t awais3823/nginx-nodejs-redis-web:latest ./web

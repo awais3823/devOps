@@ -1,4 +1,4 @@
-# Task 3: CI/CD Pipeline with GitHub Actions
+# 03-cicd-github-actions: CI/CD Pipeline with GitHub Actions
 
 This document describes the CI/CD pipeline implementation for the nginx-nodejs-redis project using GitHub Actions.
 

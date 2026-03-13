@@ -1,4 +1,4 @@
-# Task 1: Dockerize Final Year Project Application
+# 01-dockerize-app: Dockerize Final Year Project Application
 ### 1. Check Docker Installation
 # Verify Docker is installed
 docker --version
