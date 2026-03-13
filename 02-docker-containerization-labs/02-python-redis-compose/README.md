@@ -2,7 +2,7 @@
 
 
 # Step 1: Move to the Task 2 folder
-cd ~/Documents/devops/assignment2/task2
+cd 02-docker-containerization-labs/02-python-redis-compose
 
 # Step 2: Create a Dockerfile
 nano Dockerfile

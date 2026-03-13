@@ -1,5 +1,5 @@
 # Step 1: Move to the Task 1 folder
-cd ~/Documents/devops/assignment2/task1
+cd 02-docker-containerization-labs/01-docker-basics
 
 # Step 2: Create a Dockerfile
 nano Dockerfile
