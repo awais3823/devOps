@@ -1,0 +1,49 @@
+# Prometheus + Grafana Helm Chart Values (Alternative to Kubeagle)
+# Install with: helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f k8s/prometheus-values.yaml
+
+# Grafana configuration
+grafana:
+  enabled: true
+  adminPassword: admin
+  service:
+    type: NodePort
+    nodePort: 30000
+  persistence:
+    enabled: false
+    size: 10Gi
+
+# Prometheus configuration
+prometheus:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 30090
+  prometheusSpec:
+    retention: 30d
+    # Disabled storage for now due to storage provisioner issues
+    # storageSpec:
+    #   volumeClaimTemplate:
+    #     spec:
+    #       storageClassName: "local-path"
+    #       accessModes: ["ReadWriteOnce"]
+    #       resources:
+    #         requests:
+    #           storage: 20Gi
+
+# Alertmanager configuration
+alertmanager:
+  enabled: true
+  service:
+    type: NodePort
+    nodePort: 30093
+
+# Node Exporter
+nodeExporter:
+  enabled: false
+  # Disabled due to mount issues with Docker/Kind
+
+# Kube State Metrics
+kubeStateMetrics:
+  enabled: true
+
+

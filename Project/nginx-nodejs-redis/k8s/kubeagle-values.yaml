@@ -1,0 +1,38 @@
+# Kubeagle Helm Chart Values
+# This file contains configuration for Kubeagle monitoring
+
+# Kubeagle configuration
+kubeagle:
+  enabled: true
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    
+  # Resource limits
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  # Persistence
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+    
+  # Monitoring configuration
+  monitoring:
+    enabled: true
+    scrapeInterval: 30s
+    
+  # Alerting
+  alerting:
+    enabled: true
+
+
+

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nginx-nodejs-redis
+  labels:
+    name: nginx-nodejs-redis
+
+
+
