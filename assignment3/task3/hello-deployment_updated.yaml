@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+spec:
+  replicas: 2
+
+  # selector must match the template labels
+  selector:
+    matchLabels:
+      app: hello
+
+  template:
+    metadata:
+      labels:
+        app: hello
+    spec:
+      # SCHEDULE ALL PODS TO THE NODE WITH THE LABEL disktype=ssd
+      nodeSelector:
+        disktype: ssd
+
+      # NOTE: affinity/podAntiAffinity removed so pods can land on the same node
+      containers:
+        - name: hello-from
+          image: pbitty/hello-from:latest   # <-- replace if needed
+          ports:
+            - name: http
+              containerPort: 80
+      terminationGracePeriodSeconds: 1
+

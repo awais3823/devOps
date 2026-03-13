@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+
+# (a) kind → This tells Kubernetes what type of resource this file defines.
+# Here, it is a Deployment, which manages multiple replicas of a Pod.
+kind: Deployment
+
+metadata:
+  name: hello
+
+spec:
+  # (b) replicas → Number of pod copies Kubernetes should keep running.
+  replicas: 2
+
+  # (c) replicas.strategy → Deployment update strategy.
+  # RollingUpdate means pods are updated gradually to avoid downtime.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 100%
+
+  selector:
+    matchLabels:
+      app: hello
+
+  template:
+    metadata:
+      labels:
+        app: hello
+
+    spec:
+
+      # (d) spec.template.spec.affinity → Scheduling rules that influence
+      # which nodes the pods run on.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values: [hello]
+            # This ensures pods do NOT run on the same node (host).
+            topologyKey: "kubernetes.io/hostname"
+
+      # (e) spec.template.spec.containers → Defines the containers that run
+      # inside each pod, including the image used and ports exposed.
+      containers:
+        - name: hello-from
+          image: pbitty/hello-from:latest
+          ports:
+            - name: http
+              containerPort: 80
+
+      terminationGracePeriodSeconds: 1
+
