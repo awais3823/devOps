@@ -1,0 +1,88 @@
+name: CI/CD Pipeline
+
+on:
+  release:
+    types: [published]
+
+env:
+  KUBERNETES_NAMESPACE: nginx-nodejs-redis
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and Push Web Image
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          USER=${{ secrets.DOCKERHUB_USERNAME }}
+          docker build -t $USER/nginx-nodejs-redis-web:$TAG -f ./Project/nginx-nodejs-redis/web/Dockerfile ./Project/nginx-nodejs-redis/web
+          docker push $USER/nginx-nodejs-redis-web:$TAG
+          docker tag $USER/nginx-nodejs-redis-web:$TAG $USER/nginx-nodejs-redis-web:latest
+          docker push $USER/nginx-nodejs-redis-web:latest
+
+      - name: Build and Push Nginx Image
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          USER=${{ secrets.DOCKERHUB_USERNAME }}
+          docker build -t $USER/nginx-nodejs-redis-nginx:$TAG -f ./Project/nginx-nodejs-redis/nginx/Dockerfile ./Project/nginx-nodejs-redis/nginx
+          docker push $USER/nginx-nodejs-redis-nginx:$TAG
+          docker tag $USER/nginx-nodejs-redis-nginx:$TAG $USER/nginx-nodejs-redis-nginx:latest
+          docker push $USER/nginx-nodejs-redis-nginx:latest
+
+      - name: Configure Kubernetes
+        run: |
+          mkdir -p $HOME/.kube
+          
+          # Try to use kubeconfig.b64 file first, then fallback to secret
+          if [ -f ./kubeconfig.b64 ]; then
+            echo "Using kubeconfig.b64 file"
+            base64 -d ./kubeconfig.b64 > $HOME/.kube/config
+          elif [ -n "${{ secrets.KUBECONFIG }}" ]; then
+            echo "Using KUBECONFIG secret"
+            KUBE="${{ secrets.KUBECONFIG }}"
+            # Try base64 decode
+            if echo -n "$KUBE" | base64 -d > $HOME/.kube/config 2>/dev/null && head -n 1 $HOME/.kube/config | grep -q "^apiVersion:" 2>/dev/null; then
+              echo "✓ Decoded from base64"
+            else
+              # Plain text
+              echo "$KUBE" > $HOME/.kube/config
+              echo "✓ Using plain text"
+            fi
+          else
+            echo "Error: No kubeconfig found (neither kubeconfig.b64 file nor KUBECONFIG secret)"
+            exit 1
+          fi
+          
+          chmod 600 $HOME/.kube/config
+          
+          # Validate kubeconfig
+          if ! head -n 1 $HOME/.kube/config | grep -q "^apiVersion:"; then
+            echo "Error: Invalid kubeconfig format"
+            echo "First 50 chars: $(head -c 50 $HOME/.kube/config)"
+            exit 1
+          fi
+          
+          # Test connection
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Deploy to Kubernetes
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          USER=${{ secrets.DOCKERHUB_USERNAME }}
+          NS=${{ env.KUBERNETES_NAMESPACE }}
+          
+          kubectl set image deployment/web web=$USER/nginx-nodejs-redis-web:$TAG -n $NS
+          kubectl set image deployment/nginx nginx=$USER/nginx-nodejs-redis-nginx:$TAG -n $NS
+          
+          kubectl rollout status deployment/web -n $NS --timeout=300s
+          kubectl rollout status deployment/nginx -n $NS --timeout=300s
